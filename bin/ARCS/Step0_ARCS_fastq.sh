@@ -29,8 +29,8 @@ echo "N: $N"
 
 #longranger basic will generate fastq file with barcode in header
 #zcat testrun/outs/barcoded.fastq.gz | less -S 
-ID=testrun1
-fastq=./fastq
+ID=fairchild_10x_longranger_basic
+fastq=./fairchild_10x_fastq
 longranger basic --id=$ID --fastqs=$fastq \
      --localmem=128 \
      --localcores=24
