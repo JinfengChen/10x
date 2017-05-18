@@ -34,7 +34,7 @@ fastq=citrus.barcoded.fastq.gz
 #scaffold to link
 #ref=ecoli_ass.reform.fa
 #ref=hsapiens-8reformat.fa
-ref=Fairchild.fa
+ref=Fairchild.reform.fa
 prefix=citrus
 echo "Prepare CHROMIUM interleaved fastq file"
 if [ ! -e $prefix\_CHROMIUM_interleaved.fastq.gz ]; then
@@ -47,7 +47,7 @@ echo "Align reads by BWA mem"
 if [ ! -e $prefix\.CHROMIUM-sorted.bam ]; then
    echo "......"
    bwa index $ref
-   bwa mem -t24 $ref -p $prefix\_CHROMIUM_interleaved.fastq.gz | samtools view -Sb - | samtools sort -n - -o $prefix\.CHROMIUM-sorted.bam
+   bwa mem -t24 $ref -p $prefix\_CHROMIUM_interleaved.fastq.gz | /opt/linux/centos/7.x/x86_64/pkgs/samtools/1.3/bin/samtools view -Sb - | /opt/linux/centos/7.x/x86_64/pkgs/samtools/1.3/bin/samtools sort -n - -o $prefix\.CHROMIUM-sorted.bam
    ls $prefix\.CHROMIUM-sorted.bam > $prefix\.CHROMIUM-sorted.bam.list  
 fi
 
@@ -58,12 +58,16 @@ E=30000  #-e  End length (bp) of sequences to consider (default: 30000)
 L=5      #-l  minimum number of links (k-mer pairs) to compute scaffold (default -l 5, optional)
 A=0.9    #-a  maximum link ratio between two best contig pairs (default -a 0.3, optional)
 	 #*higher values lead to least accurate scaffolding*
-gv=$ref\.scaff_s$identity\_c$C\_l0_d0_e$E\_r$R\_original.gv
+#Fairchild.reform.fa.scaff_s98_c5_l0_d0_e30000_r0.05_original.gv
+gv=$ref\.scaff_s98_c5_l0_d0_e30000_r0.05_original.gv
+echo $gv
 if [ ! -e $gv ]; then
    echo "......"
    arcs -f $ref -a $prefix\.CHROMIUM-sorted.bam.list -s 98 -c $C -l 0 -d 0 -r $R -e $E -v 1 -m 20-10000
    python makeTSVfile.py $gv links_c5r0.05e30000-l5-a0.9.tigpair_checkpoint.tsv $ref
    LINKS -f $ref -s empty.fof -k 20 -b links_c5r0.05e30000-l5-a0.9 -l $L -t 2 -a $A -x 1
+   perl rename_scaffold.pl -f links_c5r0.05e30000-l5-a0.9.scaffolds.fa -o links_c5r0.05e30000-l5-a0.9.scaffolds.rename.fa
+   perl ~/BigData/software/bin/sumNxx.pl links_c5r0.05e30000-l5-a0.9.scaffolds.rename.fa > links_c5r0.05e30000-l5-a0.9.scaffolds.rename.fa.NXX
    #example
    #arcs -f $ref -a NA24143_genome_phased_namesorted.bam1.sorted.bam.list -s 98 -c $C -l 0 -d 0 -r $R -e $E -v 1 -m 20-10000
    #python makeTSVfile.py hsapiens-8reformat.fa.scaff_s98_c5_l0_d0_e30000_r0.05_original.gv links_c5r0.05e30000-l5-a0.9.tigpair_checkpoint.tsv hsapiens-8reformat.fa
