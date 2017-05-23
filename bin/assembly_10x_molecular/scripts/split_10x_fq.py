@@ -111,6 +111,7 @@ def sum_barcode(fastqfile):
         print >> ofile_barcode_sum, '%s\t%s' %(bc, barcode_sum[bc])
     ofile_barcode_sum.close()
     os.system("awk '$2 > 50' %s.barcode.list | wc -l > %s.barcode.sum" %(fastqfile, fastqfile))
+    #add something here to extract only these molecular with more than 2X50 reads
     return '%s.barcode.sum' %(fastqfile)
 
 def sum_barcode_helper(args):
@@ -152,8 +153,8 @@ def main():
         fq_prefix = os.path.splitext(args.input)[0]
     print "fq_prefix: %s" %(fq_prefix)
     if not os.path.exists('%s_split' %(fq_prefix)):
-        print "split fq into 500,000 reads chunks: %s" %(fq_prefix)
-        os.system('perl scripts/fastq_split.pl -s 500_000 -o %s_split %s' %(fq_prefix, args.input))
+        print "split fq into 100,000 reads chunks: %s" %(fq_prefix)
+        os.system('perl scripts/fastq_split.pl -s 100_000 -o %s_split %s' %(fq_prefix, args.input))
     sum_barcode_by_split_fq('%s_split' %(fq_prefix), args.cpu)
  
 if __name__ == '__main__':
