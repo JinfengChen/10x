@@ -11,3 +11,10 @@ perl getidseq.pl -l Citrus10x.fasta_contig.10kb.id -f Citrus10x.fasta_contig.fas
 sbatch Step0_map_blasr.sh
 bash Step1_graph_script.sh
 
+echo "pool assembly 10x"
+ln -s ~/BigData/00.RD/Assembly/10xgenomics/bin/assembly_10x_molecular/test1.fq_split_asm_merge.fasta pool_asm.test.fasta
+faFilter -minSize=10000 pool_asm.test.fasta pool_asm.test.10kb.fasta
+perl make_contigs_from_fasta_1line.pl pool_asm.test.10kb.fasta
+sbatch Step0_map_blasr.sh
+bash Step1_graph_script.sh
+
