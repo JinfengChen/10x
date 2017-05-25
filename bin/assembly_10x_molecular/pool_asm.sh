@@ -30,10 +30,16 @@ echo "N: $N"
 #~/BigData/software/seqtk-master/seqtk sample -s seed=11 citrus_CHROMIUM_interleaved.fastq.gz 0.3 > citrus_CHROMIUM_interleaved.0.3.fastq
 #python Split_Fastq2PE.py --input citrus_CHROMIUM_interleaved.0.3.fastq
 #perl scripts/fastq_split.pl -s 500_000 -o citrus_CHROMIUM_interleaved.fastq_split citrus_CHROMIUM_interleaved.fastq.gz
-
-python scripts/split_10x_fq.py --input test1.fq.gz
-#python scripts/pool_reads_isolation.py --input test1.fq_split --ref citrus.trimmedReads.10kb.fasta
-#python scripts/pool_reads_asm.py --input test1.fq_split
+FILE=p12X.fq.gz
+PREFIX=${FILE%.gz}
+echo $FILE
+echo $PREFIX
+#python scripts/split_10x_fq.py --input $FILE
+#python scripts/pool_reads_isolation.py --input $PREFIX\_split --ref citrus.trimmedReads.10kb.fasta
+#sbatch --array 1-50 p12X.fq_split.isolate_pacbio.sh #run when need to
+#python scripts/pool_reads_asm.py --input $PREFIX\_split
+#sbatch --array 2-50 p12X.fq_split.canu.sh #run when need to
+#python scripts/pool_reads_asm_merge.py --input $PREFIX\_split
 
 end=`date +%s`
 runtime=$((end-start))

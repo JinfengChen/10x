@@ -105,13 +105,30 @@ def sum_barcode(fastqfile):
         unit = re.split(r'_', str(record.id))
         name = unit[0]
         barcode = unit[1]
-        barcode_sum[barcode] += 1 
-    ofile_barcode_sum = open('%s.barcode.list' %(fastqfile), 'w')
+        barcode_sum[barcode] += 1
+
+    barcode_pass = defaultdict(lambda : int())
+    ofile_barcode_sum  = open('%s.barcode.sum' %(fastqfile), 'w')
+    ofile_barcode_list = open('%s.barcode.list' %(fastqfile), 'w')
     for bc in sorted(barcode_sum.keys()):
-        print >> ofile_barcode_sum, '%s\t%s' %(bc, barcode_sum[bc])
+        print >> ofile_barcode_list, '%s\t%s' %(bc, barcode_sum[bc])
+        if barcode_sum[bc] >= 50:
+            barcode_pass[bc] = barcode_sum[bc]
+    print >> ofile_barcode_sum, str(len(barcode_pass.keys()))
     ofile_barcode_sum.close()
-    os.system("awk '$2 > 50' %s.barcode.list | wc -l > %s.barcode.sum" %(fastqfile, fastqfile))
+    ofile_barcode_list.close()
+    #os.system("awk '$2 > 50' %s.barcode.list | wc -l > %s.barcode.sum" %(fastqfile, fastqfile))
     #add something here to extract only these molecular with more than 2X50 reads
+    newfastq = '%s.50reads.fastq' %(os.path.splitext(fastqfile)[0])
+    ofile_fastq = open(newfastq, 'w')
+    for record in SeqIO.parse(fastqfile, "fastq"):
+        unit = re.split(r'_', str(record.id))
+        name = unit[0]
+        barcode = unit[1]
+        if barcode_pass.has_key(barcode):
+            SeqIO.write(record, ofile_fastq, "fastq")
+    ofile_fastq.close()
+    os.system('rm %s' %(fastqfile))
     return '%s.barcode.sum' %(fastqfile)
 
 def sum_barcode_helper(args):

@@ -44,13 +44,13 @@ def readtable(infile):
                     data[unit[0]] = unit[1]
     return data
 
-def write_slurm_shell_canu(fa_dir):
-    shell = '%s.canu.sh' %(fa_dir)
+def write_slurm_shell_canu(fa):
+    shell = '%s.canu.sh' %(fa)
     cmd='''#!/bin/bash
 #SBATCH --nodes=1
-#SBATCH --ntasks=12
-#SBATCH --mem=100G
-#SBATCH --time=40:00:00
+#SBATCH --ntasks=24
+#SBATCH --mem=200G
+#SBATCH --time=10:00:00
 #SBATCH --output=%s.stdout
 #SBATCH -p intel
 #SBATCH --workdir=./
@@ -59,41 +59,24 @@ def write_slurm_shell_canu(fa_dir):
 module load java/8u25
 canu=/rhome/cjinfeng/BigData/00.RD/Assembly/Pacbio/install/Canu/canu-1.3/Linux-amd64/bin/canu
 
-CPU=$SLURM_NTASKS
-if [ ! $CPU ]; then
-   CPU=2
-fi
+$canu -assemble \\
+ maxMemory=190 \\
+ maxThreads=24 \\
+ useGrid=false \\
+ -p citrus -d %s_canu \\
+ genomeSize=300m \\
+ -pacbio-corrected %s
 
-N=$SLURM_ARRAY_TASK_ID
-if [ ! $N ]; then
-    N=1
-fi
-
-echo "CPU: $CPU"
-echo "N: $N"
-
-fasta=`ls %s/*.pacbio_reads.fa | head -n $N | tail -n 1`
-
-if [ ! -e $fasta\_canu ]; then
- echo "canu assembly: $fasta"
- $canu -assemble \\
-     maxMemory=90 \\
-     maxThreads=$CPU \\
-     useGrid=false \\
-     -p citrus -d $fasta\_canu \\
-     genomeSize=70m \\
-     -pacbio-corrected $fasta
-fi
 echo "Done"
-''' %(shell, fa_dir)
+''' %(shell, fa, fa)
 
     ofile = open(shell, 'w')
     print >> ofile, cmd
     ofile.close()
-    #if not os.path.exists('%s_canu' %(fa)):
-    job = 'sbatch --array 1-54 %s.canu.sh' %(fa_dir)
-    print job
-    #os.system(job)
+    if not os.path.exists('%s_canu' %(fa)):
+        job = 'sbatch %s.canu.sh' %(fa)
+        print job
+        os.system(job)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -110,7 +93,8 @@ def main():
     if args.input:
         args.input = os.path.abspath(args.input)   
 
-    write_slurm_shell_canu(args.input)        
+    for fa in sorted(glob.glob('%s/*.pacbio_reads.fa' %(args.input))):
+        write_slurm_shell_canu(fa)        
 
 
 if __name__ == '__main__':

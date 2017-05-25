@@ -44,36 +44,49 @@ def readtable(infile):
                     data[unit[0]] = unit[1]
     return data
 
-def write_slurm_shell_bwa(fq, ref, cpu):
-    shell = '%s.sh' %(fq)
+def write_slurm_shell_bwa(fq_dir, ref, cpu):
+    shell = '%s.isolate_pacbio.sh' %(fq_dir)
     cmd='''#!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --ntasks=%s
-#SBATCH --mem=100G
-#SBATCH --time=40:00:00
+#SBATCH --mem=20G
+#SBATCH --time=4:00:00
 #SBATCH --output=%s.stdout
 #SBATCH -p intel
 #SBATCH --workdir=./
 
-
+module load bamtools/2.4.0
 module load samtools/1.3
 module load bwa/0.7.15
 module load seqtk
 
 CPU=$SLURM_NTASKS
+if [ ! $CPU ]; then
+   CPU=2
+fi
+
+N=$SLURM_ARRAY_TASK_ID
+if [ ! $N ]; then
+    N=1
+fi
+
+echo "CPU: $CPU"
+echo "N: $N"
 
 ref=%s
-fastq=%s
+fastq=`ls %s/*.50reads.f*q | head -n $N | tail -n 1`
 bwa mem -t$CPU $ref -p $fastq | /opt/linux/centos/7.x/x86_64/pkgs/samtools/1.3/bin/samtools view -Sb - | /opt/linux/centos/7.x/x86_64/pkgs/samtools/1.3/bin/samtools sort - -o $fastq\.map-sorted.bam
-samtools view $fastq\.map-sorted.bam | cut -f3 | uniq |sort | uniq > $fastq\.pacbio_reads.list 
+bamtools filter -in $fastq\.map-sorted.bam -out $fastq\.map-sorted.NM3.bam -tag NM:"<=3"
+samtools view $fastq\.map-sorted.NM3.bam | awk '$6!~/S|H/ && $6~/M/' | cut -f3 | uniq |sort | uniq > $fastq\.pacbio_reads.list 
 seqtk subseq $ref $fastq\.pacbio_reads.list > $fastq\.pacbio_reads.fa
+rm $fastq\.map-sorted.bam $fastq\.map-sorted.NM3.bam $fastq
 
 echo "Done"
-''' %(cpu, shell, ref, fq)
+''' %(cpu, shell, ref, fq_dir)
     ofile = open(shell, 'w')
     print >> ofile, cmd
     ofile.close()
-    job = 'sbatch %s.sh' %(fq)
+    job = 'sbatch --array 1-55 %s.isolate_pacbio.sh' %(fq_dir)
     print job
     os.system(job)
 
@@ -81,7 +94,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input')
     parser.add_argument('-r', '--ref')
-    parser.add_argument('-c', '--cpu', default='24')
+    parser.add_argument('-c', '--cpu', default='4')
     parser.add_argument('-v', dest='verbose', action='store_true')
     args = parser.parse_args()
     try:
@@ -95,8 +108,7 @@ def main():
     if args.ref:
         args.ref   = os.path.abspath(args.ref) 
 
-    for fq in glob.glob('%s/*.f*q' %(args.input)):
-        write_slurm_shell_bwa(fq, args.ref, args.cpu)        
+    write_slurm_shell_bwa(args.input, args.ref, args.cpu)        
 
 
 if __name__ == '__main__':

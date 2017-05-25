@@ -13,7 +13,7 @@ from utility import gff_parser, createdir
 def usage():
     test="name"
     message='''
-python scripts/pool_reads_asm.py --input test.fq_split
+python scripts/pool_reads_isolation.py --input test.fq.gz --ref citrus.trimmedReads.10kb.fasta --cpu 24
 
     '''
     print message
@@ -44,61 +44,46 @@ def readtable(infile):
                     data[unit[0]] = unit[1]
     return data
 
-def write_slurm_shell_canu(fa_dir):
-    shell = '%s.canu.sh' %(fa_dir)
+def write_slurm_shell_bwa(fq, ref, cpu):
+    shell = '%s.sh' %(fq)
     cmd='''#!/bin/bash
 #SBATCH --nodes=1
-#SBATCH --ntasks=12
-#SBATCH --mem=100G
-#SBATCH --time=40:00:00
+#SBATCH --ntasks=%s
+#SBATCH --mem=20G
+#SBATCH --time=4:00:00
 #SBATCH --output=%s.stdout
 #SBATCH -p intel
 #SBATCH --workdir=./
 
-#run assembly with canu: all in 1
-module load java/8u25
-canu=/rhome/cjinfeng/BigData/00.RD/Assembly/Pacbio/install/Canu/canu-1.3/Linux-amd64/bin/canu
+module load bamtools/2.4.0
+module load samtools/1.3
+module load bwa/0.7.15
+module load seqtk
 
 CPU=$SLURM_NTASKS
-if [ ! $CPU ]; then
-   CPU=2
-fi
 
-N=$SLURM_ARRAY_TASK_ID
-if [ ! $N ]; then
-    N=1
-fi
+ref=%s
+fastq=%s
+bwa mem -t$CPU $ref -p $fastq | /opt/linux/centos/7.x/x86_64/pkgs/samtools/1.3/bin/samtools view -Sb - | /opt/linux/centos/7.x/x86_64/pkgs/samtools/1.3/bin/samtools sort - -o $fastq\.map-sorted.bam
+bamtools filter -in $fastq\.map-sorted.bam -out $fastq\.map-sorted.NM3.bam -tag NM:"<=3"
+samtools view $fastq\.map-sorted.NM3.bam | awk '$6!~/S|H/ && $6~/M/' | cut -f3 | uniq |sort | uniq > $fastq\.pacbio_reads.list 
+seqtk subseq $ref $fastq\.pacbio_reads.list > $fastq\.pacbio_reads.fa
+rm $fastq\.map-sorted.bam $fastq\.map-sorted.NM3.bam $fastq
 
-echo "CPU: $CPU"
-echo "N: $N"
-
-fasta=`ls %s/*.pacbio_reads.fa | head -n $N | tail -n 1`
-
-if [ ! -e $fasta\_canu ]; then
- echo "canu assembly: $fasta"
- $canu -assemble \\
-     maxMemory=90 \\
-     maxThreads=$CPU \\
-     useGrid=false \\
-     -p citrus -d $fasta\_canu \\
-     genomeSize=70m \\
-     -pacbio-corrected $fasta
-fi
 echo "Done"
-''' %(shell, fa_dir)
-
+''' %(cpu, shell, ref, fq)
     ofile = open(shell, 'w')
     print >> ofile, cmd
     ofile.close()
-    #if not os.path.exists('%s_canu' %(fa)):
-    job = 'sbatch --array 1-54 %s.canu.sh' %(fa_dir)
+    job = 'sbatch %s.sh' %(fq)
     print job
-    #os.system(job)
+    os.system(job)
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input')
-    parser.add_argument('-c', '--cpu', default='24')
+    parser.add_argument('-r', '--ref')
+    parser.add_argument('-c', '--cpu', default='4')
     parser.add_argument('-v', dest='verbose', action='store_true')
     args = parser.parse_args()
     try:
@@ -109,8 +94,11 @@ def main():
     
     if args.input:
         args.input = os.path.abspath(args.input)   
+    if args.ref:
+        args.ref   = os.path.abspath(args.ref) 
 
-    write_slurm_shell_canu(args.input)        
+    for fq in sorted(glob.glob('%s/*.50reads.f*q' %(args.input))):
+        write_slurm_shell_bwa(fq, args.ref, args.cpu)        
 
 
 if __name__ == '__main__':
