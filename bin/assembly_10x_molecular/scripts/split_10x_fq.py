@@ -173,6 +173,7 @@ def main():
         print "split fq into 100,000 reads chunks: %s" %(fq_prefix)
         os.system('perl scripts/fastq_split.pl -s 100_000 -o %s_split %s' %(fq_prefix, args.input))
     sum_barcode_by_split_fq('%s_split' %(fq_prefix), args.cpu)
+    os.system('ls %s_split/*.50reads.fastq > %s_split.50reads.list' %(os.path.abspath(fq_prefix), fq_prefix))
  
 if __name__ == '__main__':
     main()

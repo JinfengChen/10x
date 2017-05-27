@@ -74,7 +74,7 @@ echo "CPU: $CPU"
 echo "N: $N"
 
 ref=%s
-fastq=`ls %s/*.50reads.f*q | head -n $N | tail -n 1`
+fastq=`cat %s.50reads.list | head -n $N | tail -n 1`
 bwa mem -t$CPU $ref -p $fastq | /opt/linux/centos/7.x/x86_64/pkgs/samtools/1.3/bin/samtools view -Sb - | /opt/linux/centos/7.x/x86_64/pkgs/samtools/1.3/bin/samtools sort - -o $fastq\.map-sorted.bam
 bamtools filter -in $fastq\.map-sorted.bam -out $fastq\.map-sorted.NM3.bam -tag NM:"<=3"
 samtools view $fastq\.map-sorted.NM3.bam | awk '$6!~/S|H/ && $6~/M/' | cut -f3 | uniq |sort | uniq > $fastq\.pacbio_reads.list 
@@ -88,7 +88,7 @@ echo "Done"
     ofile.close()
     job = 'sbatch --array 1-55 %s.isolate_pacbio.sh' %(fq_dir)
     print job
-    os.system(job)
+    #os.system(job)
 
 def main():
     parser = argparse.ArgumentParser()
