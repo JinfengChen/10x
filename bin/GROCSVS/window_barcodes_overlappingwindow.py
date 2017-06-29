@@ -50,11 +50,28 @@ class WindowBarcodesStep(step.StepChunk):
                          self.chrom,
                          str(self.chunk)])
         
-    def outpaths(self, final, pos):
+    def outpaths(self, final):
         directory = self.results_dir if final \
                     else self.working_dir
 
         file_name = "bcwindows.{}.{}.{}.{}.pickle".format(
+            self.sample.name,
+            self.dataset.id,
+            self.chrom,
+            self.chunk)
+
+        paths = {
+            "bcwindows": os.path.join(directory, file_name)
+        }
+
+        return paths
+
+        
+    def outpaths_2(self, final, pos):
+        directory = self.results_dir if final \
+                    else self.working_dir
+
+        file_name = "bcwindows.{}.{}.{}.{}.{}.pickle".format(
             self.sample.name,
             self.dataset.id,
             self.chrom,
@@ -67,16 +84,15 @@ class WindowBarcodesStep(step.StepChunk):
 
         return paths
 
-
     def run(self):
         import logging
         logging.info("running!")
 
         window_size = self.options.constants["window_size"]
         #walk by 100bp, we generate two windows up and down stream of one point, compare barcode from these two window to get similarity level of this point
-        walk_step   = 100
-        outpath_up   =  self.outpaths(final=False, 'up')["bcwindows"]
-        outpath_down =  self.outpaths(final=False, 'down')["bcwindows"]
+        walk_step   = 1000
+        outpath_up   =  self.outpaths_2(final=False, pos='up')["bcwindows"]
+        outpath_down =  self.outpaths_2(final=False, pos='down')["bcwindows"]
 
         self.logger.log("Loading barcode map...")
         # call_readclouds_step = call_readclouds.FilterFragmentsStep(
@@ -112,7 +128,7 @@ class WindowBarcodesStep(step.StepChunk):
         utilities.pickle.dump(result_up, open(outpath_up, "w"), protocol=-1)
 
         result_down = {
-            "barcode_windows": barcode_windows_up,
+            "barcode_windows": barcode_windows_down,
             "nbcs": len(barcode_map),
             "window_size":     window_size
         }
@@ -144,5 +160,6 @@ def get_barcode_windows_seperate(fragments, barcode_map, window_size, chrom_leng
         overlap = utilities.frags_overlap_same_chrom(fragments, start, end)
         barcodes = set(barcode_map[bc] for bc in overlap["bc"])
         barcode_windows.append(barcodes)
+        barcode_windows.append(set([start, end]))
     return barcode_windows 
 
