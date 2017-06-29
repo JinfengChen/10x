@@ -91,8 +91,7 @@ class WindowBarcodesStep(step.StepChunk):
         window_size = self.options.constants["window_size"]
         #walk by 100bp, we generate two windows up and down stream of one point, compare barcode from these two window to get similarity level of this point
         walk_step   = 1000
-        outpath_up   =  self.outpaths_2(final=False, pos='up')["bcwindows"]
-        outpath_down =  self.outpaths_2(final=False, pos='down')["bcwindows"]
+        outpath     =  self.outpaths(final=False)["bcwindows"]
 
         self.logger.log("Loading barcode map...")
         # call_readclouds_step = call_readclouds.FilterFragmentsStep(
@@ -114,25 +113,17 @@ class WindowBarcodesStep(step.StepChunk):
 
         #barcode_windows = get_barcode_windows(
         #    fragments, barcode_map, window_size, chrom_length, start, end)
-        barcode_windows_up   = get_barcode_windows_seperate(fragments, barcode_map, window_size, chrom_length, start, end, walk_step, 0)
-        barcode_windows_down = get_barcode_windows_seperate(fragments, barcode_map, window_size, chrom_length, start, end, walk_step, 1)
+        barcode_windows  = get_barcode_windows_seperate(fragments, barcode_map, window_size, chrom_length, start, end, walk_step)
 
 
         self.logger.log("Saving results...")
-        result_up = {
-            "barcode_windows": barcode_windows_up,
+        result = {
+            "barcode_windows": barcode_windows,
             # "barcode_map":     barcode_map,
             "nbcs": len(barcode_map),
             "window_size":     window_size
         }
-        utilities.pickle.dump(result_up, open(outpath_up, "w"), protocol=-1)
-
-        result_down = {
-            "barcode_windows": barcode_windows_down,
-            "nbcs": len(barcode_map),
-            "window_size":     window_size
-        }
-        utilities.pickle.dump(result_down, open(outpath_down, "w"), protocol=-1)
+        utilities.pickle.dump(result, open(outpath, "w"), protocol=-1)
 
 
 def get_barcode_windows(fragments, barcode_map, window_size, chrom_length, start, end):
@@ -149,17 +140,24 @@ def get_barcode_windows(fragments, barcode_map, window_size, chrom_length, start
     return barcode_windows
 
 #get barcode windows for up and downstream from each position seperately
-def get_barcode_windows_seperate(fragments, barcode_map, window_size, chrom_length, start, end, walk_step, down):
+def get_barcode_windows_seperate(fragments, barcode_map, window_size, chrom_length, start, end, walk_step):
     window_starts = range(start, end-2*window_size, walk_step)
     barcode_windows = []
+   
     for start in window_starts:
-        if down:
-            #do downstream window only, need to change the start by start + windows size
-            start = start + window_size + 1
+        #up windows
         end = start + window_size
         overlap = utilities.frags_overlap_same_chrom(fragments, start, end)
         barcodes = set(barcode_map[bc] for bc in overlap["bc"])
         barcode_windows.append(barcodes)
         barcode_windows.append(set([start, end]))
+        #down windows, need to change the start by start + windows size
+        start1 = start + window_size + 1
+        end1 = start1 + window_size
+        overlap1 = utilities.frags_overlap_same_chrom(fragments, start1, end1)
+        barcodes1 = set(barcode_map[bc1] for bc1 in overlap1["bc"])
+        barcode_windows.append(barcodes1)
+        barcode_windows.append(set([start1, end1]))
+
     return barcode_windows 
 
