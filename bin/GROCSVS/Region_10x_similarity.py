@@ -39,6 +39,7 @@ def run(options):
     runner = pipeline.Runner(options)
 
     for stage_name, stage in stages.items():
+        print ('Running state: "{}"'.format(stage_name))
         runner.run_stage(stage, stage_name)
 
 
@@ -80,8 +81,9 @@ def get_stages():
     stages["QC"] = svstages.qc.QCStep
 
     stages["Window Barcodes"] = svstages.window_barcodes_overlappingwindow.WindowBarcodesStep
+    stages["Barcode Overlaps"] = svstages.barcode_overlaps_overlappingwindow.BarcodeOverlapsStep
 
-    '''    # Find SV candidates
+    '''# Find SV candidates
 
     stages["Window Barcodes"] = svstages.window_barcodes.WindowBarcodesStep
     stages["Barcode Overlaps"] = svstages.barcode_overlaps.BarcodeOverlapsStep
