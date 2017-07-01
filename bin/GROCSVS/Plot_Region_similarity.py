@@ -62,22 +62,25 @@ def parse_hd5_file(infile, ofile):
     outfile.close()
     return ofile
 
-def plot_curve(table, prefix):
+def plot_curve(table, prefix, left, right):
     
     R_cmd='''
 pdf("%s.similiarity_curve.pdf", height=4, width=12)
 read.table("%s", header=FALSE) -> x
-x <- x[(x[,7] > 28000000 & x[,7] < 40000000),]
-atxvalue <- seq (28, 40, by=2)
+left  <- %s
+right <- %s
+x <- x[(x[,7] > left*1000000 & x[,7] < right*1000000),]
+atxvalue <- seq (left, right, by=2)
 atyvalue <- seq (0, 1, by=0.2)
 atx <- c(atxvalue*1000000)
 aty <- c(atyvalue)
-plot(x[,7], x[,2], type="p", pch=18, col="blue", xlab="Position (Mb)", ylab="Read cloud similarity", xlim=c(28*1000000, 40*1000000), ylim=c(0, 1), axes=FALSE)
+plot(x[,7], x[,2], type="p", pch=18, col="blue", xlab="Position (Mb)", ylab="Read cloud similarity", xlim=c(left*1000000, right*1000000), ylim=c(0, 1), axes=FALSE)
 axis(1, at=atx, labels=atxvalue)
 axis(2, at=aty, labels=aty)
 dev.off()
-''' %(prefix, table)
+''' %(prefix, table, left, right)
     np.savetxt('%s.test.R' %(prefix), np.array(R_cmd).reshape(1,), fmt='%s') 
+    os.system('cat %s.test.R | R --slave' %(prefix))
 
 def main():
     parser = argparse.ArgumentParser()
@@ -91,10 +94,19 @@ def main():
         usage()
         sys.exit(2)
 
-    ofile = '%s.table' %(args.input)
-    if not os.path.exists(ofile):
-        parse_hd5_file(args.input, ofile)
-    plot_curve(ofile, 'chr3_28_40')
+    with open (args.input, 'r') as filehd:
+        for line in filehd:
+            line = line.rstrip()
+            if len(line) > 2: 
+                unit = re.split(r'\t',line)
+                prefix = '%s_%s_%s' %(unit[0], unit[1], unit[2])
+                hdf5   = unit[3]
+                left   = unit[1]
+                right  = unit[2]
+                ofile = '%s.table' %(hdf5)
+                if not os.path.exists(ofile):
+                    parse_hd5_file(hdf5, ofile)
+                plot_curve(ofile, prefix, left, right)
 
 if __name__ == '__main__':
     main()
