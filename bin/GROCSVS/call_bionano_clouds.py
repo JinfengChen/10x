@@ -10,6 +10,79 @@ import subprocess
 from grocsvs import step
 from grocsvs import utilities
 
+class CombineBionanocloudsStep(step.StepChunk):
+    @staticmethod
+    def get_steps(options):
+        for sample, dataset in options.iter_10xdatasets():
+            yield CombineBionanocloudsStep(options, sample, dataset)
+
+    def __init__(self, options, sample, dataset):
+        self.options = options
+        self.sample = sample
+        self.dataset = dataset
+
+    def __str__(self):
+        return ".".join([self.__class__.__name__,
+                         self.sample.name, 
+                         self.dataset.id])
+        
+    def outpaths(self, final):
+        directory = self.results_dir if final \
+                    else self.working_dir
+
+        readclouds = "readclouds.{}.{}.tsv.gz".format(
+            self.sample.name,
+            self.dataset.id
+            )
+
+        paths = {
+            "readclouds": os.path.join(directory, readclouds),
+            "index": os.path.join(directory, readclouds+".tbi")
+
+        }
+
+        return paths
+
+    def run(self):
+        outpaths = self.outpaths(final=False)
+
+        self.logger.log("Loading read clouds...")
+
+        readclouds = []
+        for i, inpath in enumerate(self.get_input_paths()):
+            try:
+                readclouds.append(pandas.read_table(inpath, compression="gzip"))
+            except pandas.io.common.EmptyDataError:
+                self.logger.log("No read clouds found in {}; skipping".format(inpath))
+        readclouds = pandas.concat(readclouds)
+
+
+        self.logger.log("Writing readclouds to file...")
+
+        tmp_readclouds_path = outpaths["readclouds"][:-3]
+        readclouds.to_csv(tmp_readclouds_path, sep="\t", index=False)
+
+        bgzip = self.options.binary("bgzip")
+        bgzip_cmd = "{} {}".format(bgzip, tmp_readclouds_path)
+        bgzip_proc = subprocess.Popen(bgzip_cmd, shell=True)
+        bgzip_proc.wait()
+
+
+        self.logger.log("Indexing readclouds file...")
+        # define the chrom, start and end columns; and indicate that
+        # the first (header) row should be skipped
+        tabix = self.options.binary("tabix")
+        tabix_cmd = "{} -s 1 -b 2 -e 3 -S 1 {}".format(tabix, outpaths["readclouds"])
+        subprocess.check_call(tabix_cmd, shell=True)
+
+
+    def get_input_paths(self):
+        paths = []
+        for chrom in self.options.reference.chroms:
+            input_step = CallBionanocloudsStep(self.options, self.sample, self.dataset, chrom)
+            paths.append(input_step.outpaths(final=True)["readclouds"])
+
+        return paths
 
 class CallBionanocloudsStep(step.StepChunk):
     @staticmethod
@@ -88,5 +161,5 @@ def parse_label_number(qmap):
     data = collections.defaultdict(lambda : list())
     qmap_align = numpy.loadtxt(qmap, comments="#", dtype=str)
     for i in range(len(qmap_align)):
-        data[qmap_align[i][0]] = [qmap_align[i][1], qmap_align[i][2]]
+        data[qmap_align[i][0]] = [qmap_align[i][2], qmap_align[i][1]]
     return data
