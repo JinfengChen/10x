@@ -10,6 +10,8 @@ import subprocess
 from grocsvs import step
 from grocsvs import utilities
 
+Readcloud = collections.namedtuple("Readcloud", "chrom start_pos end_pos bc num_reads obs_len hap")
+
 class CombineBionanocloudsStep(step.StepChunk):
     @staticmethod
     def get_steps(options):
@@ -34,8 +36,14 @@ class CombineBionanocloudsStep(step.StepChunk):
             self.sample.name,
             self.dataset.id
             )
+  
+        barcode_map_file = "barcode_map.{}.{}.pickle".format(
+            self.sample.name,
+            self.dataset.id
+            )
 
         paths = {
+            "barcode_map": os.path.join(directory, barcode_map_file),
             "readclouds": os.path.join(directory, readclouds),
             "index": os.path.join(directory, readclouds+".tbi")
 
@@ -55,6 +63,12 @@ class CombineBionanocloudsStep(step.StepChunk):
             except pandas.io.common.EmptyDataError:
                 self.logger.log("No read clouds found in {}; skipping".format(inpath))
         readclouds = pandas.concat(readclouds)
+        
+        good_barcodes = readclouds["bc"].unique()
+        barcode_map = get_barcode_map(good_barcodes)
+        self.logger.log("Writing barcode map to file...")
+        with open(outpaths["barcode_map"], "w") as outf:
+            utilities.pickle.dump(barcode_map, outf, protocol=-1)
 
 
         self.logger.log("Writing readclouds to file...")
@@ -163,3 +177,39 @@ def parse_label_number(qmap):
     for i in range(len(qmap_align)):
         data[qmap_align[i][0]] = [qmap_align[i][2], qmap_align[i][1]]
     return data
+
+def get_barcode_map(barcodes):
+    barcodes = sorted(barcodes)
+    return dict(zip(barcodes, range(len(barcodes))))
+
+def load_fragments(options, sample, dataset, chrom=None, start=None, end=None, usecols=None, 
+                   min_reads_per_frag=1):
+    if start is not None:
+        if start < 0:
+            raise Exception("start coord is negative: {}:{}-{}".format(chrom, start, end))
+    if end is not None:
+        if start >= end:
+            raise Exception("end coord is before start: {}:{}-{}".format(chrom, start, end))
+
+    readclouds_path = os.path.join(
+        options.results_dir,
+        "CombineBionanocloudsStep",
+        "readclouds.{}.{}.tsv.gz".format(sample.name, dataset.id))
+
+    tabix = pysam.TabixFile(readclouds_path)
+    
+    if chrom is not None and chrom not in tabix.contigs:
+        print("MISSING:", chrom)
+        return pandas.DataFrame(columns="chrom start_pos end_pos bc num_reads obs_len hap".split())
+    
+    if usecols is not None and "num_reads" not in usecols:
+        usecols.append("num_reads")
+        
+    s = StringIO.StringIO("\n".join(tabix.fetch(chrom, start, end)))
+    readclouds = pandas.read_table(s, header=None, names=Readcloud._fields, usecols=usecols)
+    readclouds["chrom"] = readclouds["chrom"].astype("string")
+    
+    if min_reads_per_frag > 0:
+        readclouds = readclouds.loc[readclouds["num_reads"]>min_reads_per_frag]
+
+    return readclouds
