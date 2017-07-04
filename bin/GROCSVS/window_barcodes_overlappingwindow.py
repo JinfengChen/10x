@@ -91,6 +91,9 @@ class WindowBarcodesStep(step.StepChunk):
         window_size = self.options.constants["window_size"]
         #walk by 100bp, we generate two windows up and down stream of one point, compare barcode from these two window to get similarity level of this point
         walk_step   = 1000
+        if self.sample.name == 'map':
+            walk_step   = 100
+            window_size = 50000
         outpath     =  self.outpaths(final=False)["bcwindows"]
 
         self.logger.log("Loading barcode map...")

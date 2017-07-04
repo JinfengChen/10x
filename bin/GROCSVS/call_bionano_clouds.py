@@ -12,11 +12,11 @@ from grocsvs import utilities
 
 Readcloud = collections.namedtuple("Readcloud", "chrom start_pos end_pos bc num_reads obs_len hap")
 
-class CombineBionanocloudsStep(step.StepChunk):
+class CombineReadcloudsStep(step.StepChunk):
     @staticmethod
     def get_steps(options):
         for sample, dataset in options.iter_10xdatasets():
-            yield CombineBionanocloudsStep(options, sample, dataset)
+            yield CombineReadcloudsStep(options, sample, dataset)
 
     def __init__(self, options, sample, dataset):
         self.options = options

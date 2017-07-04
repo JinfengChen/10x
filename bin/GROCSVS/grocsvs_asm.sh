@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --nodes=1
-#SBATCH --ntasks=24
-#SBATCH --mem=100G
+#SBATCH --ntasks=10
+#SBATCH --mem=200G
 #SBATCH --time=40:00:00
 #SBATCH --output=grocsvs_asm.sh.stdout
 #SBATCH -p intel
@@ -23,7 +23,8 @@ fi
 echo "CPU: $CPU"
 echo "N: $N"
 
-config=configuration.json
+#config=./grocsvs_fairchild/configuration.json
+config=./grocsvs_fairchild/configuration_bionano.json
 python=/bigdata/stajichlab/cjinfeng/00.RD/Assembly/10xgenomics/tools/GROCSVS/grocsvs_env/bin/python
 export PATH=~/BigData/00.RD/Assembly/10xgenomics/tools/GROCSVS/bin:$PATH
 export PYTHONPATH=/rhome/cjinfeng/BigData/software/miniconda2/envs/GROCSVS/lib/python2.7/site-packages/:~/BigData/software/pythonlib/pygraphviz/lib/python2.7/site-packages/:/rhome/cjinfeng/BigData/00.RD/Assembly/10xgenomics/tools/GROCSVS/grocsvs_env/lib/python2.7/site-packages:$PYTHONPATH

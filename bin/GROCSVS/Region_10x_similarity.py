@@ -84,8 +84,8 @@ def get_stages():
     #stages["Barcode Overlaps"] = svstages.barcode_overlaps_overlappingwindow.BarcodeOverlapsStep
     
     stages["Call Bionano Clouds"] = svstages.call_bionano_clouds.CallBionanocloudsStep
-    stages["Combine Bionano Clouds"] = svstages.call_bionano_clouds.CombineBionanocloudsStep
-    stages["Window Barcodes"] = svstages.window_barcodes_overlappingwindow_bionano.WindowBarcodesStep
+    stages["Combine Bionano Clouds"] = svstages.call_bionano_clouds.CombineReadcloudsStep
+    stages["Window Barcodes"] = svstages.window_barcodes_overlappingwindow.WindowBarcodesStep
     stages["Barcode Overlaps"] = svstages.barcode_overlaps_overlappingwindow.BarcodeOverlapsStep
 
     '''# Find SV candidates
